@@ -350,6 +350,26 @@ void ICACHE_RAM_ATTR SetRFLinkRate(uint8_t index) // Set speed of RF link (hz)
   rfModeLastChangedMS = millis();
 }
 
+static void ICACHE_RAM_ATTR synFei_AdjustFrequency()
+{
+  uint8_t modresult = OtaNonce % 8;
+  int32_t offset;
+  if (modresult == 0)
+  {
+    offset = FreqCorrectionMax / 10;
+  }
+  else if (modresult == 4)
+  {
+    offset = FreqCorrectionMin / 10;
+  }
+  else
+  {
+    offset = 0;
+  }
+
+  Radio.SetFrequencyReg(FHSSgetCurrFreq() + offset);
+}
+
 void ICACHE_RAM_ATTR HandleFHSS()
 {
   uint8_t modresult = (OtaNonce + 1) % ExpressLRS_currAirRate_Modparams->FHSShopInterval;
@@ -358,6 +378,8 @@ void ICACHE_RAM_ATTR HandleFHSS()
   {
     Radio.SetFrequencyReg(FHSSgetNextFreq());
   }
+  else
+    synFei_AdjustFrequency();
 }
 
 void ICACHE_RAM_ATTR HandlePrepareForTLM()
@@ -1044,6 +1066,7 @@ void loop()
   CheckConfigChangePending();
   DynamicPower_Update(now);
   VtxPitmodeSwitchUpdate();
+  FreqCorrection = map(crsf.ChannelData[15], CRSF_CHANNEL_VALUE_MIN, CRSF_CHANNEL_VALUE_MAX, FreqCorrectionMin, FreqCorrectionMax);
 
   if (TxBackpack->available())
   {

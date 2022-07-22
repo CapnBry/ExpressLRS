@@ -355,6 +355,9 @@ void ICACHE_RAM_ATTR SX1280Driver::SetFrequencyHz(uint32_t freq)
 
 void ICACHE_RAM_ATTR SX1280Driver::SetFrequencyReg(uint32_t regfreq)
 {
+    if (currFreq == regfreq)
+        return;
+
     WORD_ALIGNED_ATTR uint8_t buf[3] = {0};
 
     buf[0] = (uint8_t)((regfreq >> 16) & 0xFF);

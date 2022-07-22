@@ -60,12 +60,16 @@ static inline void FHSSsetCurrIndex(const uint8_t value)
     FHSSptr = value % FHSSgetSequenceCount();
 }
 
+static ICACHE_RAM_ATTR uint32_t FHSSgetCurrFreq()
+{
+    return FHSSconfig->freq_start + (freq_spread * FHSSsequence[FHSSptr] / FREQ_SPREAD_SCALE) - FreqCorrection;
+}
+
 // Advance the pointer to the next hop and return the frequency of that channel
-static inline uint32_t FHSSgetNextFreq()
+static ICACHE_RAM_ATTR uint32_t FHSSgetNextFreq()
 {
     FHSSptr = (FHSSptr + 1) % FHSSgetSequenceCount();
-    uint32_t freq = FHSSconfig->freq_start + (freq_spread * FHSSsequence[FHSSptr] / FREQ_SPREAD_SCALE) - FreqCorrection;
-    return freq;
+    return FHSSgetCurrFreq();
 }
 
 static inline const char *getRegulatoryDomain()

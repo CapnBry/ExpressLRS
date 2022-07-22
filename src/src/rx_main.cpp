@@ -316,7 +316,7 @@ void ICACHE_RAM_ATTR LinkStatsToOta(OTA_LinkStats_s * const ls)
     ls->modelMatch = connectionHasModelMatch;
     ls->lq = crsf.LinkStatistics.uplink_Link_quality;
     ls->mspConfirm = MspReceiver.GetCurrentConfirm() ? 1 : 0;
-#if defined(DEBUG_FREQ_CORRECTION)
+#if 1 || defined(DEBUG_FREQ_CORRECTION)
     ls->SNR = FreqCorrection * 127 / FreqCorrectionMax;
 #else
     ls->SNR = SnrMean.mean();
@@ -830,6 +830,13 @@ static bool ICACHE_RAM_ATTR ProcessRfPacket_SYNC(uint32_t const now, OTA_Sync_s 
     return false;
 }
 
+static int32_t synFei_PacketReceivedNonce;
+
+void ICACHE_RAM_ATTR SynFei_PacketReceived()
+{
+    synFei_PacketReceivedNonce = OtaNonce;
+}
+
 bool ICACHE_RAM_ATTR ProcessRFPacket(SX12xxDriverCommon::rx_status const status)
 {
     if (status != SX12xxDriverCommon::SX12XX_RX_OK)
@@ -852,7 +859,7 @@ bool ICACHE_RAM_ATTR ProcessRFPacket(SX12xxDriverCommon::rx_status const status)
         return false;
     }
 
-    // don't use telemetry packets for PDF calculation since TX does not send such data and tlm frames from other rx are not in sync
+    // don't use telemetry packets for PFD calculation since TX does not send such data and tlm frames from other rx are not in sync
     if (otaPktPtr->std.type == PACKET_TYPE_TLM)
     {
         return true;
@@ -887,6 +894,7 @@ bool ICACHE_RAM_ATTR ProcessRFPacket(SX12xxDriverCommon::rx_status const status)
     getRFlinkInfo();
     // Received a packet, that's the definition of LQ
     LQCalc.add();
+    SynFei_PacketReceived();
     // Extend sync duration since we've received a packet at this rate
     // but do not extend it indefinitely
     RFmodeCycleMultiplier = RFmodeCycleMultiplierSlow;
@@ -1180,6 +1188,7 @@ static void setupRadio()
 
     SetRFLinkRate(RATE_DEFAULT);
     RFmodeCycleMultiplier = 1;
+    synFei_PacketReceivedNonce = -1;
 }
 
 static void updateTelemetryBurst()
@@ -1417,6 +1426,43 @@ void setup()
     devicesStart();
 }
 
+#define SYNFEI_PERIOD           8
+#define SYNFEI_REQUIRED_PACKETS 20
+#define SYNFEI_MAX_DIFFERENCE   4
+
+void updateSynFei()
+{
+    if (synFei_PacketReceivedNonce == -1)
+        return;
+
+    uint8_t receivedNonce = synFei_PacketReceivedNonce % SYNFEI_PERIOD;
+    synFei_PacketReceivedNonce = -1;
+
+    static uint8_t synFei_cntHi;
+    static uint8_t synFei_cntLo;
+
+    if (receivedNonce == 1)
+    {
+        ++synFei_cntHi;
+    }
+    else if (receivedNonce == 5)
+    {
+        ++synFei_cntLo;
+    }
+
+    if (synFei_cntHi + synFei_cntLo >= SYNFEI_REQUIRED_PACKETS)
+    {
+        int32_t diff = (int32_t)synFei_cntHi - (int32_t)synFei_cntLo;
+        DBGLN("synFei=%d", diff);
+        if (diff >= SYNFEI_MAX_DIFFERENCE)
+            HandleFreqCorr(false);
+        else if (diff <= -SYNFEI_MAX_DIFFERENCE)
+            HandleFreqCorr(true);
+
+        synFei_cntHi = synFei_cntLo = 0;
+    }
+}
+
 void loop()
 {
     unsigned long now = millis();
@@ -1491,6 +1537,7 @@ void loop()
     updateTelemetryBurst();
     updateBindingMode(now);
     updateSwitchMode();
+    updateSynFei();
     debugRcvrLinkstats();
 }
 
