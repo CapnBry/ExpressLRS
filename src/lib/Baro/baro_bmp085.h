@@ -7,20 +7,20 @@
 #include "baro_base.h"
 #include "baro_bmp085_regs.h"
 
-class BMP085 : public BaroI2CBase<BMP085_I2C_ADDR>
+class BMP085 : public BaroI2CBase
 {
 public:
     // Detect if chip is present
-    static bool detect();
+    static bool detect(uint8_t address);
 
     // BaroBase methods
-    void initialize();
+    void initialize(uint8_t address);
     uint8_t getPressureDuration();
-    void startPressure();
-    uint32_t getPressure();
+    void startPressure(uint8_t address);
+    uint32_t getPressure(uint8_t address);
     uint8_t getTemperatureDuration();
-    void startTemperature();
-    int32_t getTemperature();
+    void startTemperature(uint8_t address);
+    int32_t getTemperature(uint8_t address);
 
 protected:
     // 3x pressure + temperature = 30.5ms per update

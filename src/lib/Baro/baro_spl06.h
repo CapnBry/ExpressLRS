@@ -3,22 +3,22 @@
 #include "baro_base.h"
 #include "baro_spl06_regs.h"
 
-class SPL06 : public BaroI2CBase<SPL06_I2C_ADDR>
+class SPL06 : public BaroI2CBase
 {
 public:
     SPL06() : BaroI2CBase(), m_calib{0} {}
 
     // Detect if chip is present
-    static bool detect();
+    static bool detect(uint8_t address);
 
     // BaroBase methods
-    void initialize();
+    void initialize(uint8_t address);
     uint8_t getPressureDuration();
-    void startPressure();
-    uint32_t getPressure();
+    void startPressure(uint8_t address);
+    uint32_t getPressure(uint8_t address);
     uint8_t getTemperatureDuration();
-    void startTemperature();
-    int32_t getTemperature();
+    void startTemperature(uint8_t address);
+    int32_t getTemperature(uint8_t address);
 protected:
     // 32x Pressure + 8x Temperature = 70ms per update
     // 4x=8.4ms/2.5PaRMS, 8x=14.8ms, 16x=27.6ms/1.2Pa, 32x=53.2ms/0.9Pa, 64x=104.4ms/0.5Pa

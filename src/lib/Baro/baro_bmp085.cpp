@@ -9,14 +9,14 @@
  * https://github.com/adafruit/Adafruit-BMP085-Library/
  ****/
 
-void BMP085::initialize()
+void BMP085::initialize(uint8_t address)
 {
     if (m_initialized)
         return;
 
     // All the calibration registers are in order of our struct and are 2 bytes long too,
     // so just read them directly into our calib data
-    readRegister(BMP085_CALIB_COEFFS_START, (uint8_t *)&m_calib, sizeof(m_calib));
+    readRegister(address, BMP085_CALIB_COEFFS_START, (uint8_t *)&m_calib, sizeof(m_calib));
 }
 
 uint8_t BMP085::getPressureDuration()
@@ -31,10 +31,10 @@ uint8_t BMP085::getPressureDuration()
     }
 }
 
-void BMP085::startPressure()
+void BMP085::startPressure(uint8_t address)
 {
     uint8_t reg_value = BMP085_CMD_MEAS_PRESSURE | (OVERSAMPLING_PRESSURE << 6);
-    writeRegister(BMP085_REG_CONTROL, &reg_value, sizeof(reg_value));
+    writeRegister(address, BMP085_REG_CONTROL, &reg_value, sizeof(reg_value));
 }
 
 int32_t BMP085::computeB5(int32_t UT) const
@@ -44,10 +44,10 @@ int32_t BMP085::computeB5(int32_t UT) const
     return X1 + X2;
 }
 
-uint32_t BMP085::getPressure()
+uint32_t BMP085::getPressure(uint8_t address)
 {
     uint8_t buf[3];
-    readRegister(BMP085_REG_PRESSURE_DATA, buf, sizeof(buf));
+    readRegister(address, BMP085_REG_PRESSURE_DATA, buf, sizeof(buf));
     uint32_t raw = ((buf[0] << 16) | (buf[1] << 8) | buf[2]) >> OVERSAMPLING_PRESSURE;
 
     int32_t B3, B5, B6, X1, X2, X3, p;
@@ -86,24 +86,24 @@ uint8_t BMP085::getTemperatureDuration()
     return 5;
 }
 
-void BMP085::startTemperature()
+void BMP085::startTemperature(uint8_t address)
 {
     uint8_t reg_value = BMP085_CMD_MEAS_TEMPERATURE;
-    writeRegister(BMP085_REG_CONTROL, &reg_value, sizeof(reg_value));
+    writeRegister(address, BMP085_REG_CONTROL, &reg_value, sizeof(reg_value));
 }
 
-int32_t BMP085::getTemperature()
+int32_t BMP085::getTemperature(uint8_t address)
 {
     m_temperatureLast = 0;
-    readRegister(BMP085_REG_TEMPERATURE_DATA, (uint8_t *)&m_temperatureLast, sizeof(m_temperatureLast));
+    readRegister(address, BMP085_REG_TEMPERATURE_DATA, (uint8_t *)&m_temperatureLast, sizeof(m_temperatureLast));
     return m_temperatureLast;
 }
 
-bool BMP085::detect()
+bool BMP085::detect(uint8_t address)
 {
     // Assumes Wire.begin() has already been called
     uint8_t chipid = 0;
-    readRegister(BMP085_REG_CHIPID, &chipid, sizeof(chipid));
+    readRegister(address, BMP085_REG_CHIPID, &chipid, sizeof(chipid));
     return chipid == BMP085_CHIPID;
 }
 #endif

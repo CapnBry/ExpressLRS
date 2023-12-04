@@ -16,8 +16,19 @@ extern Telemetry telemetry;
 /* Local statics */
 static BaroBase *baro;
 static eBaroReadState BaroReadState;
+static uint8_t detectedBaroAddress;
 
 extern bool i2c_enabled;
+
+static bool detectAndInitializeBarometer(uint8_t address, const char* baroType, std::function<bool(uint8_t)> detectFunc, std::function<BaroBase*()> createFunc) {
+    if (detectFunc(address)) {
+        detectedBaroAddress = address;
+        DBGLN("Detected baro: %s", baroType);
+        baro = createFunc();
+        return true;
+    }
+    return false;
+}
 
 static bool Baro_Detect()
 {
@@ -25,25 +36,13 @@ static bool Baro_Detect()
 #if defined(USE_I2C)
     if (i2c_enabled)
     {
-        if (SPL06::detect())
-        {
-            DBGLN("Detected baro: SPL06");
-            baro = new SPL06();
-            return true;
-        }
-        if (BMP280::detect())
-        {
-            DBGLN("Detected baro: BMP280");
-            baro = new BMP280();
-            return true;
-        }
-        // Untested
-        // if (BMP085::detect())
-        // {
-        //     DBGLN("Detected baro: BMP085");
-        //     baro = new BMP085();
-        //     return true;
-        // }
+    // Usage
+    if (detectAndInitializeBarometer(SPL06_I2C_ADDR, "SPL06", SPL06::detect, []() { return new SPL06(); }) ||
+        // detectAndInitializeBarometer(BMP085_I2C_ADDR, "BMP085", BMP085::detect, []() { return new SPL06(); }) ||
+        detectAndInitializeBarometer(BMP280_I2C_ADDR, "BMP280", BMP280::detect, []() { return new BMP280(); }) ||
+        detectAndInitializeBarometer(BMP280_I2C_ADDR_ALT, "BMP280", BMP280::detect, []() { return new BMP280(); })) {
+        return true;
+    }
         // DBGLN("No baro detected");
     } // I2C
 #endif
@@ -52,7 +51,7 @@ static bool Baro_Detect()
 
 static int Baro_Init()
 {
-    baro->initialize();
+    baro->initialize(detectedBaroAddress);
     if (baro->isInitialized())
     {
         // Slow down Vbat updates to save bandwidth
@@ -145,7 +144,7 @@ static int timeout()
 
         case brsWaitingTemp:
             {
-                int32_t temp = baro->getTemperature();
+                int32_t temp = baro->getTemperature(detectedBaroAddress);
                 if (temp == BaroBase::TEMPERATURE_INVALID)
                     return DURATION_IMMEDIATELY;
             }
@@ -157,7 +156,7 @@ static int timeout()
                 BaroReadState = brsWaitingPress;
                 if (pressDuration != 0)
                 {
-                    baro->startPressure();
+                    baro->startPressure(detectedBaroAddress);
                     return pressDuration;
                 }
             }
@@ -165,7 +164,7 @@ static int timeout()
 
         case brsWaitingPress:
             {
-                uint32_t press = baro->getPressure();
+                uint32_t press = baro->getPressure(detectedBaroAddress);
                 if (press == BaroBase::PRESSURE_INVALID)
                     return DURATION_IMMEDIATELY;
                 Baro_PublishPressure(press);
@@ -181,7 +180,7 @@ static int timeout()
                     return DURATION_IMMEDIATELY;
                 }
                 BaroReadState = brsWaitingTemp;
-                baro->startTemperature();
+                baro->startTemperature(detectedBaroAddress);
                 return tempDuration;
             }
     }

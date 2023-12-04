@@ -42,19 +42,19 @@ int32_t SPL06::oversampleToScaleFactor(const uint8_t oversamples) const
     }
 }
 
-void SPL06::initialize()
+void SPL06::initialize(uint8_t address)
 {
     if (m_initialized)
         return;
 
     // Step 1: Load calibration data
     uint8_t status = 0;
-    readRegister(SPL06_MODE_AND_STATUS_REG, &status, sizeof(status));
+    readRegister(address, SPL06_MODE_AND_STATUS_REG, &status, sizeof(status));
     if (((status & SPL06_MEAS_CFG_COEFFS_RDY) == 0) || ((status & SPL06_MEAS_CFG_SENSOR_RDY) == 0))
         return;
 
     uint8_t caldata[SPL06_CALIB_COEFFS_LEN];
-    readRegister(SPL06_CALIB_COEFFS_START, caldata, sizeof(caldata));
+    readRegister(address, SPL06_CALIB_COEFFS_START, caldata, sizeof(caldata));
 
     m_calib.c0 = (caldata[0] & 0x80 ? 0xF000 : 0) | ((uint16_t)caldata[0] << 4) | (((uint16_t)caldata[1] & 0xF0) >> 4);
     m_calib.c1 = ((caldata[1] & 0x8 ? 0xF000 : 0) | ((uint16_t)caldata[1] & 0x0F) << 8) | (uint16_t)caldata[2];
@@ -69,17 +69,17 @@ void SPL06::initialize()
     // Step 2: Set up oversampling and FIFO
     uint8_t reg_value;
     reg_value = SPL06_TEMP_USE_EXT_SENSOR | oversampleToRegVal(OVERSAMPLING_TEMPERATURE);
-    writeRegister(SPL06_TEMPERATURE_CFG_REG, &reg_value, sizeof(reg_value));
+    writeRegister(address, SPL06_TEMPERATURE_CFG_REG, &reg_value, sizeof(reg_value));
 
     reg_value = oversampleToRegVal(OVERSAMPLING_PRESSURE);
-    writeRegister(SPL06_PRESSURE_CFG_REG, &reg_value, sizeof(reg_value));
+    writeRegister(address, SPL06_PRESSURE_CFG_REG, &reg_value, sizeof(reg_value));
 
     reg_value = 0;
     if (OVERSAMPLING_TEMPERATURE > 8)
         reg_value |= SPL06_TEMPERATURE_RESULT_BIT_SHIFT;
     if (OVERSAMPLING_PRESSURE > 8)
         reg_value |= SPL06_PRESSURE_RESULT_BIT_SHIFT;
-    writeRegister(SPL06_INT_AND_FIFO_CFG_REG, &reg_value, sizeof(reg_value));
+    writeRegister(address, SPL06_INT_AND_FIFO_CFG_REG, &reg_value, sizeof(reg_value));
 
     // Done!
     m_initialized = true;
@@ -90,21 +90,21 @@ uint8_t SPL06::getTemperatureDuration()
     return SPL06_MEASUREMENT_TIME(OVERSAMPLING_TEMPERATURE);
 }
 
-void SPL06::startTemperature()
+void SPL06::startTemperature(uint8_t address)
 {
     uint8_t reg_value = SPL06_MEAS_TEMPERATURE;
-    writeRegister(SPL06_MODE_AND_STATUS_REG, &reg_value, sizeof(reg_value));
+    writeRegister(address, SPL06_MODE_AND_STATUS_REG, &reg_value, sizeof(reg_value));
 }
 
-int32_t SPL06::getTemperature()
+int32_t SPL06::getTemperature(uint8_t address)
 {
     uint8_t status;
-    readRegister(SPL06_MODE_AND_STATUS_REG, &status, sizeof(status));
+    readRegister(address, SPL06_MODE_AND_STATUS_REG, &status, sizeof(status));
     if ((status & SPL06_MEAS_CFG_TEMPERATURE_RDY) == 0)
         return TEMPERATURE_INVALID;
 
     uint8_t data[SPL06_TEMPERATURE_LEN];
-    readRegister(SPL06_TEMPERATURE_START_REG, data, sizeof(data));
+    readRegister(address, SPL06_TEMPERATURE_START_REG, data, sizeof(data));
 
     // Unpack and descale
     int32_t uncorr_temp = (int32_t)((data[0] & 0x80 ? 0xFF000000 : 0) | (((uint32_t)(data[0])) << 16) | (((uint32_t)(data[1])) << 8) | ((uint32_t)data[2]));
@@ -121,21 +121,21 @@ uint8_t SPL06::getPressureDuration()
     return SPL06_MEASUREMENT_TIME(OVERSAMPLING_PRESSURE);
 }
 
-void SPL06::startPressure()
+void SPL06::startPressure(uint8_t address)
 {
     uint8_t reg_value = SPL06_MEAS_PRESSURE;
-    writeRegister(SPL06_MODE_AND_STATUS_REG, &reg_value, sizeof(reg_value));
+    writeRegister(address, SPL06_MODE_AND_STATUS_REG, &reg_value, sizeof(reg_value));
 }
 
-uint32_t SPL06::getPressure()
+uint32_t SPL06::getPressure(uint8_t address)
 {
     uint8_t status;
-    readRegister(SPL06_MODE_AND_STATUS_REG, &status, sizeof(status));
+    readRegister(address, SPL06_MODE_AND_STATUS_REG, &status, sizeof(status));
     if ((status & SPL06_MEAS_CFG_PRESSURE_RDY) == 0)
         return PRESSURE_INVALID;
 
     uint8_t data[SPL06_PRESSURE_LEN];
-    readRegister(SPL06_PRESSURE_START_REG, data, sizeof(data));
+    readRegister(address, SPL06_PRESSURE_START_REG, data, sizeof(data));
 
     // Unpack and descale
     int32_t uncorr_press = (int32_t)((data[0] & 0x80 ? 0xFF000000 : 0) | (((uint32_t)(data[0])) << 16) | (((uint32_t)(data[1])) << 8) | ((uint32_t)data[2]));
@@ -148,10 +148,10 @@ uint32_t SPL06::getPressure()
     return (pressure_cal + p_temp_comp) * 10.0;
 }
 
-bool SPL06::detect()
+bool SPL06::detect(uint8_t address)
 {
     // Assumes Wire.begin() has already been called
     uint8_t chipid = 0;
-    readRegister(SPL06_CHIP_ID_REG, &chipid, sizeof(chipid));
+    readRegister(address, SPL06_CHIP_ID_REG, &chipid, sizeof(chipid));
     return chipid == SPL06_DEFAULT_CHIP_ID;
 }

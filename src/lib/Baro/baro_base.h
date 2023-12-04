@@ -12,19 +12,19 @@ public:
 
     BaroBase() : m_initialized(false), m_altitudeHome(ALTITUDE_INVALID) {}
 
-    virtual void initialize() = 0;
+    virtual void initialize(uint8_t addr) = 0;
     // Return expected duration of pressure measurement (ms)
     virtual uint8_t getPressureDuration() = 0;
     // Start reading pressure
-    virtual void startPressure() = 0;
+    virtual void startPressure(uint8_t addr) = 0;
     // Get pressure result (deci-Pascals)
-    virtual uint32_t getPressure() = 0;
+    virtual uint32_t getPressure(uint8_t addr) = 0;
     // Return expected duration of temperature measurement (ms)
     virtual uint8_t getTemperatureDuration() = 0;
     // Start reading temperature
-    virtual void startTemperature() = 0;
+    virtual void startTemperature(uint8_t addr) = 0;
     // Get temperature result (centiDegrees)
-    virtual int32_t getTemperature() = 0;
+    virtual int32_t getTemperature(uint8_t addr) = 0;
 
     // Base functions
     bool isInitialized() const { return m_initialized; }
@@ -40,9 +40,9 @@ protected:
 void I2cReadRegister(const uint16_t address, uint8_t reg, uint8_t *data, size_t size);
 void I2cWriteRegister(const uint16_t address, uint8_t reg, uint8_t *data, size_t size);
 
-template<uint8_t addr> class BaroI2CBase : public BaroBase
+class BaroI2CBase : public BaroBase
 {
 protected:
-    static void readRegister(uint8_t reg, uint8_t *data, size_t size) { I2cReadRegister(addr, reg, data, size); }
-    static void writeRegister(uint8_t reg, uint8_t *data, size_t size) { I2cWriteRegister(addr, reg, data, size); }
+    static void readRegister(uint8_t addr, uint8_t reg, uint8_t *data, size_t size) { I2cReadRegister(addr, reg, data, size); }
+    static void writeRegister(uint8_t addr, uint8_t reg, uint8_t *data, size_t size) { I2cWriteRegister(addr, reg, data, size); }
 };

@@ -3,23 +3,23 @@
 #include "baro_base.h"
 #include "baro_bmp280_regs.h"
 
-class BMP280 : public BaroI2CBase<BMP280_I2C_ADDR>
+class BMP280 : public BaroI2CBase
 {
 public:
     BMP280() : BaroI2CBase(), m_calib{0} {}
 
     // Detect if chip is present
-    static bool detect();
+    static bool detect(uint8_t address);
 
     // BaroBase methods
-    void initialize();
+    void initialize(uint8_t address);
     uint8_t getTemperatureDuration();
-    void startTemperature();
-    int32_t getTemperature();
+    void startTemperature(uint8_t address);
+    int32_t getTemperature(uint8_t address);
     // Temperature and Pressure are measured at the same time
     uint8_t getPressureDuration() { return 0; }
-    void startPressure() {}
-    uint32_t getPressure();
+    void startPressure(uint8_t address) {}
+    uint32_t getPressure(uint8_t address);
 
 protected:
     // Filter 4: 1x=1.2PaRMS 2x=1.0PaRMS 4x=0.8PaRMS 8x=0.6PaRMS 16x=0.5PaRMS
