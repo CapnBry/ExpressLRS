@@ -79,6 +79,13 @@ void StubbornReceiver::ReceiveData(uint8_t const packageIndex, uint8_t const * c
         currentOffset = 0;
         acceptData = true;
     }
+    // If we're expecting the first package and the sender isn't on the first package
+    // assume *we* (the receiver) have restarted and the sender has not.
+    // speed things along by not acceptData but toggling the confirm bit
+    else if (packageIndex != 1 && currentPackage == 1)
+    {
+        telemetryConfirm = !telemetryConfirm;
+    }
 
     if (acceptData)
     {
